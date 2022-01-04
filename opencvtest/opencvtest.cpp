@@ -282,6 +282,122 @@ int maxFrequency(Mat& image) {//寻找频率最大的灰度值
 	return maxGrayscale;
 }
 
+
+void equalizeCallback(string name)
+{
+	Mat image = imread(name);
+	Mat dst;
+	Mat ycrcb;
+	//用cvtColor函数将BGR图像转化为YCrCb
+	cvtColor(image, ycrcb, COLOR_BGR2YCrCb);
+	vector<Mat> channels;
+	split(ycrcb, channels);
+	//函数只有两参数：输入参数和输出参数
+	equalizeHist(channels[0], channels[0]);
+	//合成生成的通道并将其转换为BGR格式
+	merge(channels, ycrcb);
+	cvtColor(ycrcb, dst, COLOR_YCrCb2BGR);
+	imshow("origin", image);
+	imshow("output", dst);
+	waitKey(0);
+	imwrite("out.png", dst);
+}
+
+void geometricTransformation(string name, int dims) {
+	Mat image;
+	if (dims == 1) {//读取图像
+		image = imread(name, 0);
+	}
+	if (dims == 3) {
+		image = imread(name, 1);
+	}
+	cout << "请选择滤波模式\n1.平移\n2.缩放\n3.旋转" << endl;
+	int mode = 0;
+	cin >> mode;
+	int rows = image.rows; 
+	int cols = image.cols;
+	if (mode == 1) {
+		Mat dst(image.size(), image.type());
+		int xOffset = 100;
+		int yOffset = 200;
+		for (int i = 0; i < rows; i++)//遍历式平移
+		{
+			for (int j = 0; j < cols; j++)
+			{
+				int x = j + xOffset;
+				int y = i + yOffset;
+				if (x >= 0 && y >= 0 && x < cols && y < rows)//溢出保护
+				{
+					if (dims == 1) {
+						dst.at<uchar>(y, x) = image.at<uchar>(i, j);
+					}
+					if (dims == 3) {
+						dst.at<Vec3b>(y, x) = image.at<Vec3b>(i, j);
+					}
+					
+				}
+			}
+		}
+		imshow("origin", image);
+		imshow("output", dst);
+		waitKey(0);
+		imwrite("out.png", dst);
+	}
+	if (mode == 2) {
+		double mul_num = 0.8;//大于1是放大，小于1是缩小
+		int row_num = (int)floor(rows * mul_num), col_num = (int)floor(cols * mul_num);
+		Mat dst(row_num, col_num, image.type());
+		for (int i = 0; i < row_num; i++){
+			for (int j = 0; j < col_num; j++){
+				int x = (int)1.0 / mul_num * i, y = (int)1.0 / mul_num * j;
+				if (dims == 1) {
+					dst.at<uchar>(i, j) = image.at<uchar>(x, y);
+				}
+				if (dims == 3) {
+					dst.at<Vec3b>(i, j) = image.at<Vec3b>(x, y);
+				}
+			}
+		}
+		imshow("origin", image);
+	    imshow("output", dst);
+	    waitKey(0);
+	    imwrite("out.png", dst);
+	}
+	if (mode == 3){
+
+		double angle = 135.0 * 3.1415926 / 180.0;//把角度化成弧度
+		int dis = ceil(sqrt(pow(rows, 2) + pow(cols, 2)));//新图像的长宽应该是原图像的对角线长度
+		Mat dst(dis, dis, image.type());
+
+		for (int i = 0; i < rows; i++)
+		{
+			for (int j = 0; j < cols; j++)
+			{
+				//计算应该平移的距离
+				float cenX = dst.rows / 2 - ((rows / 2) * cos(angle) - (cols / 2) * sin(angle));
+				float cenY = dst.cols / 2 - ((rows / 2) * sin(angle) + (cols / 2) * cos(angle));
+				//按照仿射矩阵计算后进行平移
+				int x = i * cos(angle) - j * sin(angle) + cenX;
+				int	y = i * sin(angle) + j * cos(angle) + cenY;
+				if (dims == 1) {
+					dst.at<uchar>(x, y) = image.at<uchar>(i, j);
+				}
+				if (dims == 3) {
+					dst.at<Vec3b>(x, y) = image.at<Vec3b>(i, j);
+				}
+			}
+		}
+		imshow("origin", image);
+		imshow("output", dst);
+		waitKey(0);
+		imwrite("out.png", dst);
+
+	}
+
+	
+}
+
+
 void binaryzation(string name) {
 	Mat image;
 	image = imread(name, 0);
@@ -309,7 +425,7 @@ void binaryzation(string name) {
 		double sum1 = 0, sum2 = 0, sumgray1 = 0, sumgray2 = 0;
 		double variance1 = 0, variance2 = 0, avg1 = 0, avg2 = 0;
 		double varw = 0, varb = 0, max = 0;
-		int v = 0,threshold = 0;
+		int v = 0, threshold = 0;
 		for (int gray = 0;gray < 256;gray++) {
 			for (int i = 0;i < rows;i++) {//遍历像素
 				for (int j = 0; j < cols; j++) {
@@ -359,7 +475,7 @@ void binaryzation(string name) {
 			sum1 = 0, sum2 = 0, sumgray1 = 0, sumgray2 = 0;
 			variance1 = 0, variance2 = 0, avg1 = 0, avg2 = 0;
 			varw = 0, varb = 0;
-			
+
 		}
 		for (int i = 0;i < rows;i++) {//遍历像素
 			for (int j = 0; j < cols; j++) {
@@ -377,7 +493,7 @@ void binaryzation(string name) {
 	imshow("output", dst);
 	waitKey(0);
 	imwrite("out.png", dst);
-	
+
 }
 
 Mat gaussianlbrf(Mat &image, float r,int mode)
@@ -501,7 +617,7 @@ int main(int argc, char** argv)
 	cin >> dims;
 	int type = 0;
 	while (1) {
-		cout << "请选择处理方式\n1.灰度线性变换\n2.高通低通滤波\n3.中值滤波\n4.图像二值化\n5.伪彩色增强\n6.频率域变换" << endl;
+		cout << "请选择处理方式\n1.灰度线性变换\n2.高通低通滤波\n3.中值滤波\n4.图像二值化\n5.伪彩色增强\n6.色彩平衡\n7.几何变换\n8.频率域变换" << endl;
 		cin >> type;
 		switch (type) {
 		case 1:
@@ -520,6 +636,12 @@ int main(int argc, char** argv)
 			pseudoColorEnhancement(name);
 			break;
 		case 6:
+			equalizeCallback(name);
+			break;
+		case 7:
+			geometricTransformation(name, dims);
+			break;
+		case 8:
 			freqFilt(name);
 			break;
 		default:
