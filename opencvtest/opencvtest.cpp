@@ -496,9 +496,9 @@ void binaryzation(string name) {
 
 }
 
-Mat gaussianlbrf(Mat &image, float r,int mode)
+Mat gaussianbrf(Mat &image, float r,int mode)
 {
-	Mat gaussianBlur(image.size(), CV_32FC1); //，CV_32FC1
+	Mat gaussianBlur(image.size(), CV_32FC1); //CV_32FC1
 	float d0 = 2 * r * r;//高斯函数参数，越小，频率高斯滤波器越窄，滤除高频成分越多，图像就越平滑
 	if (mode == 1) {
 		for (int i = 0;i < image.rows; i++)
@@ -510,6 +510,7 @@ Mat gaussianlbrf(Mat &image, float r,int mode)
 			}
 		}
 		imshow("高斯低通滤波器", gaussianBlur);
+		imwrite("filtout.tif", gaussianBlur);
 	}
 	if (mode == 2) {
 		for (int i = 0;i < image.rows; i++)
@@ -521,26 +522,191 @@ Mat gaussianlbrf(Mat &image, float r,int mode)
 			}
 		}
 		imshow("高斯高通滤波器", gaussianBlur);
+		imwrite("filtout.tif", gaussianBlur);
 	}
 	return gaussianBlur;
 }
 
+Mat butterworthbrf(Mat& image, float r, int mode)
+{
+	Mat butterworthBlur(image.size(), CV_32FC1); 
+	float d0 = r * r;
+	if (mode == 1) {
+		for (int i = 0;i < image.rows; i++)
+		{
+			for (int j = 0; j < image.cols; j++)
+			{
+				float d = pow(float(i - image.rows / 2), 2) + pow(float(j - image.cols / 2), 2);//计算pow必须为float型
+				butterworthBlur.at<float>(i, j) = 1 / (1 + pow(d / d0, 2));
+			}
+		}
+		imshow("butterworth低通滤波器", butterworthBlur);
+		imwrite("filtout.tif", butterworthBlur);
+	}
+	if (mode == 2) {
+		for (int i = 0;i < image.rows; i++)
+		{
+			for (int j = 0; j < image.cols; j++)
+			{
+				float d = pow(float(i - image.rows / 2), 2) + pow(float(j - image.cols / 2), 2);//计算pow必须为float型
+				butterworthBlur.at<float>(i, j) = 1 / (1 + pow(d0 / d, 2));
+			}
+		}
+		imshow("butterworth高通滤波器", butterworthBlur);
+		imwrite("filtout.tif", butterworthBlur);
+	}
+	return butterworthBlur;
+}
+
+
+Mat expbrf(Mat& image, float r, int mode)
+{
+	Mat expBlur(image.size(), CV_32FC1);
+	float d0 = r * r;
+	if (mode == 1) {
+		for (int i = 0;i < image.rows; i++)
+		{
+			for (int j = 0; j < image.cols; j++)
+			{
+				float d = pow(float(i - image.rows / 2), 2) + pow(float(j - image.cols / 2), 2);//计算pow必须为float型
+				expBlur.at<float>(i, j) = expf(-pow(d / d0, 2));
+			}
+		}
+		imshow("expBlur低通滤波器", expBlur);
+		imwrite("filtout.tif", expBlur);
+	}
+	if (mode == 2) {
+		for (int i = 0;i < image.rows; i++)
+		{
+			for (int j = 0; j < image.cols; j++)
+			{
+				float d = pow(float(i - image.rows / 2), 2) + pow(float(j - image.cols / 2), 2);//计算pow必须为float型
+				expBlur.at<float>(i, j) = expf(-pow(d0 / d, 2));
+			}
+		}
+		imshow("expBlur高通滤波器", expBlur);
+		imwrite("filtout.tif", expBlur);
+	}
+	return expBlur;
+}
+
+Mat idealbrf(Mat& image, float r, int mode)
+{
+	Mat idealBlur(image.size(), CV_32FC1);
+	float d0 = r * r;
+	if (mode == 1) {
+		for (int i = 0;i < image.rows; i++)
+		{
+			for (int j = 0; j < image.cols; j++)
+			{
+				float d = pow(float(i - image.rows / 2), 2) + pow(float(j - image.cols / 2), 2);//计算pow必须为float型
+				if (d <= d0) {
+					idealBlur.at<float>(i, j) = 1;
+				}
+				if (d > d0) {
+					idealBlur.at<float>(i, j) = 0;
+				}
+			}
+		}
+		imshow("idealBlur低通滤波器", idealBlur);
+		imwrite("filtout.tif", idealBlur);
+	}
+	if (mode == 2) {
+		for (int i = 0;i < image.rows; i++)
+		{
+			for (int j = 0; j < image.cols; j++)
+			{
+				float d = pow(float(i - image.rows / 2), 2) + pow(float(j - image.cols / 2), 2);//计算pow必须为float型
+				if (d <= d0) {
+					idealBlur.at<float>(i, j) = 0;
+				}
+				if (d > d0) {
+					idealBlur.at<float>(i, j) = 1;
+				}
+			}
+		}
+		imshow("idealBlur高通滤波器", idealBlur);
+		imwrite("filtout.tif", idealBlur);
+	}
+	return idealBlur;
+}
+
+
+int getOptimalDFTSizeW(int a) {//获取图像进行傅里叶变换的最佳大小，D=2^p+2^q+5^n>a,D的最小值就是最佳大小
+	int n = 0, min = 100000;
+	for (int i = 0;i < 14;i++) {
+		for (int j = 0;j < 14;j++) {
+			for (int m = 0;m < 14;m++) {
+				n = pow(2, i) + pow(3, j) + pow(5, m);
+				if (n > a) {
+					if (n < min) {
+						min = n;
+					}
+				}
+			}
+		}
+	}
+	return min;
+}
+
+
+void magnitudeW(Mat& image1, Mat& image2, Mat& dst) {//求图像幅值，即为两图像该点值的平方和开根号，便于显示
+	for (int i = 0;i < image1.rows;i++) {
+		for (int j = 0;j < image1.cols;j++) {
+			dst.at<float>(i, j) = sqrt(image1.at<float>(i, j) * image1.at<float>(i, j) + image2.at<float>(i, j) * image2.at<float>(i, j));
+		}
+	}
+}
+
+void normalizeW(Mat& image, Mat& dst, float max, float min) {//归一化处理，采用线性方法
+	double minVal = 0.0;
+	double maxVal = 0.0;
+	minMaxLoc(image, &minVal, &maxVal);
+	for (int i = 0;i < image.rows;i++) {
+		for (int j = 0;j < image.cols;j++) {
+			dst.at<float>(i, j) = ((image.at<float>(i, j) - minVal)*(max-min))/(maxVal-minVal)+min;
+		}
+	}
+}
 
 void freqFilt(string name)
 {
 	Mat image = imread(name, 0);
-	imshow("origin", image);
-	int w = getOptimalDFTSize(image.cols);
-	int h = getOptimalDFTSize(image.rows); //获取进行dtf的最优尺寸
-	Mat padded;//建立一个新矩阵
-	copyMakeBorder(image, padded, 0, h - image.rows, 0, w - image.cols, BORDER_CONSTANT, Scalar::all(0));  //边界填充
+	
+	int w = getOptimalDFTSizeW(image.cols);
+	int h = getOptimalDFTSizeW(image.rows); //获取进行dtf的最优尺寸
+	Mat padded(h,w,image.type());//建立一个新矩阵
+	for (int i = 0;i < padded.rows;i++) {//边界填充,便于傅里叶计算
+		for (int j = 0;j < padded.cols;j++) {
+			if (i < image.rows && j < image.cols) {
+				padded.at<uchar>(i, j) = image.at<uchar>(i, j);
+			}
+			else {
+				padded.at<uchar>(i, j) = 0;
+			}
+		}
+	}
 	padded.convertTo(padded, CV_32FC1); //将图像转换为float型
+	
 	int mode = 0, r = 0;
-	cout << "请输入模式\n1.高斯低通滤波\n2.高斯高通滤波" << endl;
+	cout << "请输入模式\n1.低通滤波\n2.高通滤波" << endl;
 	cin >> mode;
-	cout << "请输入高斯滤波器的半径" << endl;
+	cout << "请选择滤波器\n1.理想滤波器\n2.butterworth滤波器\n3.指数滤波器\n4.高斯滤波器" << endl;
 	cin >> r;
-	Mat blur = gaussianlbrf(padded, r, mode);
+	Mat blur;
+	if (r == 1) {
+		blur = idealbrf(padded, 45, mode);
+	}
+	if (r == 2) {
+		blur = butterworthbrf(padded, 45, mode);
+	}
+	if (r == 3) {
+		blur = expbrf(padded, 45, mode);
+	}
+	if (r == 4) {
+		blur = gaussianbrf(padded, 45, mode);
+	}
+	
 
 	//DFT操作
 	Mat plane[] = { padded, Mat::zeros(padded.size() , CV_32FC1) }; //创建通道，存储dft后的实部与虚部（CV_32F，必须为单通道数）
@@ -587,37 +753,134 @@ void freqFilt(string name)
 	merge(plane1, 2, BLUR);//实部与虚部合并
 
 	//得到原图频谱图
-	magnitude(plane[0], plane[1], plane[0]);//获取幅度图像，0通道为实部通道，1为虚部，因为二维傅立叶变换结果是复数  
+	magnitudeW(plane[0], plane[1], plane[0]);//获取幅度图像，0通道为实部通道，1为虚部，因为二维傅立叶变换结果是复数
 	plane[0] += Scalar::all(1);  //傅立叶变o换后的图片不好分析，进行对数处理，结果比较好看 
 	log(plane[0], plane[0]);    // float型的灰度空间为[0，1])
-	normalize(plane[0], plane[0], 1, 0, CV_MINMAX);  //归一化便于显示
+	normalizeW(plane[0], plane[0], 1, 0);  //归一化便于显示
+	imshow("origin", image);
 	imshow("原图像频谱图", plane[0]);
-
+	imwrite("outfreq.tif", plane[0]);
+	waitKey(0);
 
 	//IDFT操作，获得原图
 	idft(BLUR, BLUR);	//idft结果也为复数
 	split(BLUR, plane);//分离通道，主要获取通道
-	magnitude(plane[0], plane[1], plane[0]);  //求幅值(模)
-	normalize(plane[0], plane[0], 1, 0, CV_MINMAX);  //归一化便于显示
+	magnitudeW(plane[0], plane[1], plane[0]);  //求幅值(模)
+	normalizeW(plane[0], plane[0], 1, 0);  //归一化（线性）便于显示
 	imshow("output", plane[0]);
+	imwrite("out.tif", plane[0]);
 	waitKey(0);
-	imwrite("out.png", plane[0]);
+	
 }
 
- 
+void detection(Mat &image) {
+	int rows = image.rows;//获取行数
+	int cols = image.cols;//获取列数
+	int v = 0, s = 0, mark = 0, pointx = 0, pointy = 0, m = 0, n = 0, q = 0,pointx1 = 0, pointy1 = 0,pointx2 = 0, pointy2 = 0;
+	for (int j = 1;j < cols-1;j++) {
+		for (int i = 1;i < rows-1;i++) {
+			v = image.at<uchar>(i, j);
+			s = image.at<uchar>(i, j - 1);
+			m = image.at<uchar>(i + 1, j);
+			n = image.at<uchar>(i - 1, j);
+			q = image.at<uchar>(i, j + 1);
+			if (v == 0 && s == 255 && mark == 0) {
+				pointx = i;pointy = j;
+				cout << "长方形顶点坐标为" << "\n(" << pointx << "," << pointy << ")" << endl;
+				mark++;
+			}
+			if (m == 255 && v == 0 && mark == 1) {
+				pointx = i;pointy = j;
+				cout << "(" << pointx << "," << pointy << ")" << endl;
+				mark++;
+			}
+			if (q == 255 && v == 0 && mark == 2) {
+				pointx = i;pointy = j;
+				cout << "(" << pointx << "," << pointy << ")" << endl;
+				mark++;
+			}
+			if (m == 255 && v == 0 && mark == 3) {
+				pointx = i;pointy = j;
+				cout << "(" << pointx << "," << pointy << ")" << endl;
+				mark++;
+			}
+		}
+	}
+	int max = 0, r = 0;
+	mark = 0;
+	pointx = 0;pointx1 = 0;
+	for (int j = 434;j < 870;j++) {
+		for (int i = 1;i < rows - 1;i++) {
+			v = image.at<uchar>(i, j);
+			s = image.at<uchar>(i, j - 1);
+			m = image.at<uchar>(i + 1, j);
+			n = image.at<uchar>(i - 1, j);
+			q = image.at<uchar>(i, j + 1);
+			if (n == 255 && v == 0 ) {
+				pointx1 = i;pointy1 = j;
+			}
+
+			if (m == 255 && v == 0 ) {
+				pointx = i;pointy = j;
+			}
+		}
+		r = pointx - pointx1;
+		if (r > max) {
+			pointx2 = (pointx + pointx1) / 2;
+			pointy2 = j;
+			max = r;
+		}
+		pointx = 0; pointx1 = 0;
+	}
+	cout << "圆的中心坐标为" << "\n(" << pointx2 << "," << pointy2 << ")" << endl;
+	cout << "半径为" << max / 2 << endl;
+	mark = 0;
+	int min = 1000;
+	max = 0;
+	for (int j = 800;j < cols - 1;j++) {
+		for (int i = 1;i < rows - 1;i++) {
+			v = image.at<uchar>(i, j);
+			s = image.at<uchar>(i, j - 1);
+			m = image.at<uchar>(i + 1, j);
+			n = image.at<uchar>(i - 1, j);
+			q = image.at<uchar>(i, j + 1);
+			if (v == 0 && s == 255&&mark==0) {
+				pointx = i;pointy = j;
+				cout << "三角形顶点坐标为" << "\n(" << pointx << "," << pointy << ")" << endl;
+				mark++;
+			}
+			if (n == 255 && v == 0) {
+				if (i < min) {
+					min = i;
+					pointy2 = j;
+				}
+			}
+			if (q == 255 && v == 0) {
+				if (j > max) {
+					max = j;
+					pointx1 = i;
+				}
+			}
+		}
+	}
+    cout << "(" << min << "," << pointy2 << ")" << endl;
+	cout << "(" << pointx1 << "," << max << ")" << endl;
+
+}
 
 
 int main(int argc, char** argv)
 {
-	cout << "请输入图像名称" << endl;
+	/*cout << "请输入图像名称" << endl;
 	string name;
 	cin >> name;
 	cout << "请输入通道数" << endl;
 	int dims = 0;
 	cin >> dims;
 	int type = 0;
+	Mat image1 = imread("666.bmp", 0);
 	while (1) {
-		cout << "请选择处理方式\n1.灰度线性变换\n2.高通低通滤波\n3.中值滤波\n4.图像二值化\n5.伪彩色增强\n6.色彩平衡\n7.几何变换\n8.频率域变换" << endl;
+		cout << "请选择处理方式\n1.灰度线性变换\n2.高通低通滤波\n3.中值滤波\n4.图像二值化\n5.伪彩色增强\n6.色彩平衡\n7.几何变换\n8.频率域变换\n9.图形检测" << endl;
 		cin >> type;
 		switch (type) {
 		case 1:
@@ -644,11 +907,16 @@ int main(int argc, char** argv)
 		case 8:
 			freqFilt(name);
 			break;
+		case 9:
+			detection(image1);
+			break;
 		default:
 			cout << "请重新输入" << endl;
 			break;
 		}
 		waitKey(0);
-	}
+	}*/
+	freqFilt("222.jpg");
+	
 	return 0;
 }
